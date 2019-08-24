@@ -41,12 +41,16 @@ public class ConcurrencyTest {
 
   @Actor
   public void actor1(I_Result r) {
-    r.r1++;
+    synchronized (this) {
+      r.r1++;
+    }
   }
 
   @Actor
   public void actor2(I_Result r) {
-    r.r1++;
+    synchronized (this) {
+      r.r1++;
+    }
   }
 
 }
