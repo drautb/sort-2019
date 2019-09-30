@@ -23,9 +23,18 @@ public class App {
   public static void main(String[] args) {
     Map<String, AttributeValue> item = new HashMap<>();
     item.put("lock_name", new AttributeValue("test-lock"));
-    item.put("other_attribute", new AttributeValue("some other attribute"));
+    item.put("name", new AttributeValue("mark"));
 
-    PutItemRequest putItemRequest = new PutItemRequest(TABLE_NAME, item);
+    Map<String, String> expressionAttributeNames = new HashMap<>();
+    expressionAttributeNames.put("#N", "name");
+
+    Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
+    expressionAttributeValues.put(":current_name", new AttributeValue("jim"));
+
+    PutItemRequest putItemRequest = new PutItemRequest(TABLE_NAME, item)
+        .withConditionExpression("#N = :current_name")
+        .withExpressionAttributeNames(expressionAttributeNames)
+        .withExpressionAttributeValues(expressionAttributeValues);
 
     dynamoDbClient.putItem(putItemRequest);
   }
