@@ -13,6 +13,7 @@ import java.util.Map;
 public class App {
 
   private static final String TABLE_NAME = "drautb-sort-2019";
+  private static final long LEASE_DURATION_30_SECONDS = 30;
 
   private static final AmazonDynamoDB dynamoDbClient = AmazonDynamoDBClientBuilder
       .standard()
@@ -21,22 +22,31 @@ public class App {
       .build();
 
   public static void main(String[] args) {
+    String ownerId = "component-a";
+
     Map<String, AttributeValue> item = new HashMap<>();
-    item.put("lock_name", new AttributeValue("test-lock"));
-    item.put("name", new AttributeValue("mark"));
+    item.put("lock_name", new AttributeValue("shared-resource-lock"));
+    item.put("acquired", new AttributeValue().withN(Long.toString(getCurrentTimestampSeconds())));
+    item.put("owner", new AttributeValue(ownerId));
 
     Map<String, String> expressionAttributeNames = new HashMap<>();
-    expressionAttributeNames.put("#N", "name");
+    expressionAttributeNames.put("#O", "owner");
 
     Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
-    expressionAttributeValues.put(":current_name", new AttributeValue("jim"));
+    expressionAttributeValues.put(":owner_id", new AttributeValue(ownerId));
+    expressionAttributeValues.put(":expiration",
+        new AttributeValue().withN(Long.toString(getCurrentTimestampSeconds() - LEASE_DURATION_30_SECONDS)));
 
     PutItemRequest putItemRequest = new PutItemRequest(TABLE_NAME, item)
-        .withConditionExpression("#N = :current_name")
+        .withConditionExpression("#O = :owner_id OR attribute_not_exists(#O) OR acquired < :expiration")
         .withExpressionAttributeNames(expressionAttributeNames)
         .withExpressionAttributeValues(expressionAttributeValues);
 
     dynamoDbClient.putItem(putItemRequest);
+  }
+
+  private static long getCurrentTimestampSeconds() {
+    return System.currentTimeMillis() / 1000;
   }
 
 }
