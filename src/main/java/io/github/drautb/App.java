@@ -5,6 +5,7 @@ import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
 
 import java.util.HashMap;
@@ -22,8 +23,10 @@ public class App {
       .build();
 
   public static void main(String[] args) {
-    String ownerId = "component-a";
+    lock("component-a");
+  }
 
+  public static void lock(String ownerId) {
     Map<String, AttributeValue> item = new HashMap<>();
     item.put("lock_name", new AttributeValue("shared-resource-lock"));
     item.put("acquired", new AttributeValue().withN(Long.toString(getCurrentTimestampSeconds())));
@@ -43,6 +46,24 @@ public class App {
         .withExpressionAttributeValues(expressionAttributeValues);
 
     dynamoDbClient.putItem(putItemRequest);
+  }
+
+  public static void unlock(String ownerId) {
+    Map<String, AttributeValue> item = new HashMap<>();
+    item.put("lock_name", new AttributeValue("shared-resource-lock"));
+
+    Map<String, String> expressionAttributeNames = new HashMap<>();
+    expressionAttributeNames.put("#O", "owner");
+
+    Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
+    expressionAttributeValues.put(":owner_id", new AttributeValue(ownerId));
+
+    DeleteItemRequest deleteItemRequest = new DeleteItemRequest(TABLE_NAME, item)
+        .withConditionExpression("#O = :owner_id")
+        .withExpressionAttributeNames(expressionAttributeNames)
+        .withExpressionAttributeValues(expressionAttributeValues);
+
+    dynamoDbClient.deleteItem(deleteItemRequest);
   }
 
   private static long getCurrentTimestampSeconds() {
